@@ -11,10 +11,12 @@ s3_paginator = client.get_paginator('list_objects_v2')
 json_gzip_ext_pattern = re.compile(".*\.json\.gz")
 json_ext_pattern = re.compile(".*\.json")
 
-def _get_bucket_objects(bucket_name,prefix,start,end):
+def _get_bucket_objects(bucket_name,prefix):
+
   s3filename = bucket_name + '_' + prefix.replace('/','_') + ".tar.gz"
   fh_tarfile = io.BytesIO()
-  bucket = dict() 
+  bucket = dict()
+  
   params = { 'Bucket': bucket_name, 'Prefix': prefix }
   
   s3_iterator = s3_paginator.paginate(**params)
@@ -22,8 +24,6 @@ def _get_bucket_objects(bucket_name,prefix,start,end):
     for page in s3_iterator:
         if 'Contents' in page:
           for obj in page['Contents']:
-            #t = obj['LastModified']
-            #t.strftime('%m/%d/%Y %H:%M:%S')
             obj_key = obj["Key"]
             
             if (json_ext_pattern.match(obj_key) or json_gzip_ext_pattern.match(obj_key)):
@@ -57,8 +57,6 @@ def _get_bucket_objects(bucket_name,prefix,start,end):
               data_bytes = io.BytesIO(obj_body_str.encode('utf-8'))
 
               # add to tarball
-              #if(data_length > 0):                        
-              
               info = tarfile.TarInfo(new_obj_key)
               info.size = data_length
               tar.addfile(tarinfo=info, fileobj=data_bytes)
@@ -78,21 +76,21 @@ def _get_bucket_objects(bucket_name,prefix,start,end):
   if tarball_size > 0:
     fh_tarfile.seek(0)
     client.put_object(Body=fh_tarfile, Bucket='acx-tarballs', Key=s3filename)
+
   return bucket
-  
+
 def lambda_handler(event, context):
+  
   bucket_list = s3.buckets.all()
-  start = '2020-02-01 01:01:01+00:00'
-  end = 'endtime'
-  prefix = '/'
 
   buckets = dict()
+  #s3://acxdssplunklicence1/2023/24/05/
   bucket_list = [ 
-      { 'name': 'acx_demo', 'prefix': '2023/05/25/' }
+      { 'name': 'acxdssplunklicence1', 'prefix': '2023/24/05/' }
   ]
   
   for bucket in bucket_list:
-    buckets[bucket['name']] = _get_bucket_objects(bucket['name'], bucket['prefix'], start, end)
+    buckets[bucket['name']] = _get_bucket_objects(bucket['name'], bucket['prefix'])
 
   try:
     return {
