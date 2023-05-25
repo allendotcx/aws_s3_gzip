@@ -4,26 +4,23 @@ import boto3
 import gzip
 import re
 
-s3 = boto3.resource('s3')
 client = boto3.client('s3')
 s3_paginator = client.get_paginator('list_objects_v2')
-
 json_gzip_ext_pattern = re.compile(".*\.json\.gz")
 json_ext_pattern = re.compile(".*\.json")
 
 def _get_bucket_objects(bucket_name,prefix):
-
   s3filename = bucket_name + '_' + prefix.replace('/','_') + ".tar.gz"
   fh_tarfile = io.BytesIO()
   bucket = dict()
-  
   params = { 'Bucket': bucket_name, 'Prefix': prefix }
-  
   s3_iterator = s3_paginator.paginate(**params)
   with tarfile.open(fileobj=fh_tarfile, mode='w:gz') as tar:
     for page in s3_iterator:
         if 'Contents' in page:
           for obj in page['Contents']:
+            #t = obj['LastModified']
+            #t.strftime('%m/%d/%Y %H:%M:%S')
             obj_key = obj["Key"]
             
             if (json_ext_pattern.match(obj_key) or json_gzip_ext_pattern.match(obj_key)):
@@ -78,11 +75,8 @@ def _get_bucket_objects(bucket_name,prefix):
     client.put_object(Body=fh_tarfile, Bucket='acx-tarballs', Key=s3filename)
 
   return bucket
-
-def lambda_handler(event, context):
   
-  bucket_list = s3.buckets.all()
-
+def lambda_handler(event, context):
   buckets = dict()
   #s3://acxdssplunklicence1/2023/24/05/
   bucket_list = [ 
